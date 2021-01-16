@@ -4,18 +4,14 @@
 import sys
 import time
 import argparse
-import logging
 import json
 from gbqschema_converter.jsonschema_to_gbqschema import json_representation as to_gbq
 from gbqschema_converter.gbqschema_to_jsonschema import json_representation as to_json
+from gbqschema_converter.logger import get_logger
 
 
+logs = get_logger()
 help_string = "Google BigQuery Table Schema Converter"
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s.%(msecs)03d [%(levelname)-5s] [%(name)-12s] %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logs = logging.getLogger(help_string)
 
 
 def get_args() -> argparse.Namespace:
@@ -35,7 +31,7 @@ def get_args() -> argparse.Namespace:
 
 
 def _input() -> dict:
-    """Input parter.
+    """Input parser.
     
     Returns:
       
@@ -66,10 +62,11 @@ def json_to_gbq():
     try:
         t0 = time.time()
         schema_out = to_gbq(_input())
-        logs.info(f"""Output ({round((time.time() - t0) * 1000, 2)} ms elapsed):
-{json.dumps(schema_out, indent=2)}""")
+        logs.info(f"""Output ({round((time.time() - t0) * 1000, 2)} ms elapsed):  SUCCESS""")
+        print(json.dumps(schema_out, indent=2))
     except Exception as ex:
-        logs.error(f"Schema converion error: {ex}")
+        logs.error(f"Schema conversion error: {ex}")
+        raise ex
         sys.exit(1)    
 
 
@@ -77,8 +74,8 @@ def gbq_to_json():
     try:
         t0 = time.time()
         schema_out = to_json(_input())
-        logs.info(f"""Output ({round((time.time() - t0) * 1000, 2)} ms elapsed):
-{json.dumps(schema_out, indent=2)}""")
+        logs.info(f"""Output ({round((time.time() - t0) * 1000, 2)} ms elapsed):  SUCCESS""")
+        print(json.dumps(schema_out, indent=2))
     except Exception as ex:
-        logs.error(f"Schema converion error: {ex}")
+        logs.error(f"Schema conversion error: {ex}")
         sys.exit(1)

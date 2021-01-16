@@ -6,14 +6,18 @@ from typing import Union, Tuple, List
 from collections import namedtuple
 from google.cloud.bigquery import SchemaField
 import fastjsonschema
+from gbqschema_converter.logger import get_logger
+
+
+logs = get_logger()
 
 
 MapTypes = namedtuple("map_types",
                       ['integer', 'number', 'boolean', 'string', 'date', 'object'])
 
 map_types = MapTypes(
-    integer="INT64",
-    number="FLOAT64",
+    integer="INTEGER",
+    number="FLOAT",
     boolean="BOOLEAN",
     string="STRING",
     date="DATE",
@@ -74,12 +78,20 @@ def _converter(json_schema: dict,
         """
         output = []
         for k, v in properties.items():
+            logs.debug(f"Processing key {k}, value {v}")
             gbq_column = deepcopy(TEMPLATE_GBQ_COLUMN)
 
             gbq_column['name'] = k
 
             if 'format' not in v:
-                gbq_column['type'] = getattr(map_types, v['type'])
+                if ('type' in v.keys()):  # inline type
+                  gbq_column['type'] = getattr(map_types, v['type'])
+                elif ('$ref' in v.keys()):  # type reference (definition assumed)
+                  gbq_column['type'] = "RECORD"
+                  refType = v['$ref'].partition('#/definitions/')[2]
+                  v = json_schema['definitions'][refType]
+                else:
+                  raise fastjsonschema.JsonSchemaDefinitionException("type not specified in value", v)
             else:
                 gbq_column['type'] = "TIMESTAMP" if v['format'] == "date-time"\
                     else getattr(map_types, v['format']) if v['format'] in map_types.__dir__()\
@@ -107,15 +119,15 @@ def _converter(json_schema: dict,
 
     output = []
 
-    if 'definitions' in json_schema:
-        for prop in json_schema['definitions'].values():
-            properties = prop['properties']
-            required = prop['required'] if 'required' in prop else None
-            output.extend(__gbq_columns(properties, required))
-    else:
-        properties = json_schema['properties']
-        required = json_schema['required'] if 'required' in json_schema else None
-        output.extend(__gbq_columns(properties, required))
+    # if 'definitions' in json_schema:
+    #     for prop in json_schema['definitions'].values():
+    #         properties = prop['properties']
+    #         required = prop['required'] if 'required' in prop else None
+    #         output.extend(__gbq_columns(properties, required))
+    # else:
+    properties = json_schema['properties']
+    required = json_schema['required'] if 'required' in json_schema else None
+    output.extend(__gbq_columns(properties, required))
 
     return output
 
